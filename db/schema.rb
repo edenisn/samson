@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160818210955) do
+ActiveRecord::Schema.define(version: 20160831151133) do
 
   create_table "builds", force: :cascade do |t|
     t.integer  "project_id",                                       null: false
@@ -337,6 +337,7 @@ ActiveRecord::Schema.define(version: 20160818210955) do
     t.datetime "deleted_at"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.boolean  "include_new_deploy_groups"
     t.string   "token",              limit: 255
     t.string   "release_branch",     limit: 255
     t.string   "permalink",          limit: 255,                   null: false
@@ -445,6 +446,7 @@ ActiveRecord::Schema.define(version: 20160818210955) do
     t.boolean  "no_code_deployed",                                           default: false
     t.boolean  "docker_binary_plugin_enabled",                               default: true
     t.boolean  "kubernetes",                                                 default: false, null: false
+    t.boolean  "is_template"
   end
 
   add_index "stages", ["project_id", "permalink", "deleted_at"], name: "index_stages_on_project_id_and_permalink_and_deleted_at", length: {"project_id"=>nil, "permalink"=>191, "deleted_at"=>nil}, using: :btree
