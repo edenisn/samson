@@ -32,6 +32,9 @@ module Kubernetes
       @output.puts "### Running a remote Docker build job: #{job_name}"
       success, job_log = create_and_wait_for_job(k8s_job, @output)
 
+      ### Running security scan
+      scan_with_clair(project, tag)
+
       message = (success ? "completed successfully" : "failed or timed out")
       @output.puts "### Remote build job #{job_name} #{message}"
 
@@ -89,6 +92,23 @@ module Kubernetes
         ]
       }
       k8s_job[:spec][:template][:spec][:containers][0].update(container_params)
+    end
+
+    # So far we don't have ruby API for clair scanner and using shell script to wrap hyperclair.
+    # Hyperclair will pull the image from registry and run scan against Clair scanner
+    def scan_with_clair(project, tag)
+      require 'mixlib/shellout'
+      cmd = Mixlib::ShellOut.new("/usr/local/bin/clair_scan.sh", project, tag, @registry[:serveraddress])
+      cmd.live_stream = STDOUT
+      if File.executable?("/usr/local/bin/clair_scan.sh")
+        cmd.run_command
+        if cmd.error?
+          @output.puts "### Clair scanner found vulnarabilities, stopping build"
+          raise cmd.error!
+        else
+          @output.puts "### No vulnarabilities found, proceeding"
+        end
+      end
     end
 
     def job_config(build, project, tag:, push: false, tag_as_latest: false)
