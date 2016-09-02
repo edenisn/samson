@@ -32,11 +32,16 @@ module Kubernetes
       @output.puts "### Running a remote Docker build job: #{job_name}"
       success, job_log = create_and_wait_for_job(k8s_job, @output)
 
-      ### Running security scan
-      scan_with_clair(project, tag)
-
       message = (success ? "completed successfully" : "failed or timed out")
       @output.puts "### Remote build job #{job_name} #{message}"
+
+      if !!ENV['CLAIR_SCAN_ENABLED']
+        ### Running security scan
+        success_clair, job_log_clair = scan_with_clair(project, tag)
+        # Adding clair log to job log and success code
+        job_log = job_log + "\n" + job_log_clair
+        success = success && success_clair
+      end
 
       return success, job_log
     ensure
@@ -97,17 +102,16 @@ module Kubernetes
     # So far we don't have ruby API for clair scanner and using shell script to wrap hyperclair.
     # Hyperclair will pull the image from registry and run scan against Clair scanner
     def scan_with_clair(project, tag)
-      require 'mixlib/shellout'
-      cmd = Mixlib::ShellOut.new("/usr/local/bin/clair_scan.sh", project, tag, @registry[:serveraddress])
-      cmd.live_stream = STDOUT
-      if File.executable?("/usr/local/bin/clair_scan.sh")
-        cmd.run_command
-        if cmd.error?
-          @output.puts "### Clair scanner found vulnarabilities, stopping build"
-          raise cmd.error!
-        else
-          @output.puts "### No vulnarabilities found, proceeding"
-        end
+      IO.popen([ENV['CLAIR_EXEC_SCRIPT'], project, tag], :err=>[:child, :out]]) {|clair_io|
+        clair_result = clair_io.read
+      }
+      if $?.success?
+        @output.puts "### No vulnarabilities found, proceeding"
+        return true, ""
+      else
+        @output.puts "### Clair scanner found vulnarabilities, stopping build"
+        @output.puts "### #{clair_result}"
+        return false, clair_result
       end
     end
 
