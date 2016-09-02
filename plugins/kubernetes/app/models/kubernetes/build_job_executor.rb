@@ -35,7 +35,7 @@ module Kubernetes
       message = (success ? "completed successfully" : "failed or timed out")
       @output.puts "### Remote build job #{job_name} #{message}"
 
-      if !!ENV['CLAIR_SCAN_ENABLED']
+      if ENV['CLAIR_SCAN_ENABLED'] == 'true'
         ### Running security scan
         success_clair, job_log_clair = scan_with_clair(project, tag)
         # Adding clair log to job log and success code
