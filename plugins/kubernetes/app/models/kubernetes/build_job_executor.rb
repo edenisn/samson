@@ -40,7 +40,7 @@ module Kubernetes
         success_clair, job_log_clair = scan_with_clair(project, tag)
         # Adding clair log to job log and success code
         job_log = job_log + "\n" + job_log_clair
-        success = success && success_clair
+        success &&= success_clair
       end
 
       return success, job_log
@@ -102,9 +102,8 @@ module Kubernetes
     # So far we don't have ruby API for clair scanner and using shell script to wrap hyperclair.
     # Hyperclair will pull the image from registry and run scan against Clair scanner
     def scan_with_clair(project, tag)
-      IO.popen([ENV['CLAIR_EXEC_SCRIPT'], project, tag], :err=>[:child, :out]) {|clair_io|
-        clair_result = clair_io.read
-      }
+      clair_result = IO.popen([ENV['CLAIR_EXEC_SCRIPT'], project, tag], err: [:child, :out]).read
+
       if $?.success?
         @output.puts "### No vulnarabilities found, proceeding"
         return true, ""
